@@ -117,14 +117,15 @@ function AddTaskModal({ onClose, onAdd }: {
 
 /* ─── Stock summary (รวม) ─── */
 function StockSummary({ stock }: { stock: StockItem[] }) {
-  const totalInitial   = stock.reduce((s, i) => s + getInitial(i), 0);
-  const totalSold      = stock.reduce((s, i) => s + STOCK_DATES.reduce((t, d) => t + (i.dateQty?.[d] ?? 0), 0), 0);
-  const totalRemaining = totalInitial - totalSold;
+  const totalRemaining = stock.reduce((s, i) => s + getRemaining(i), 0);
+  const totalSold      = stock.reduce(
+    (s, i) => s + ["13","14","19","20"].reduce((t, d) => t + (i.dateQty?.[d] ?? 0), 0), 0
+  );
 
   return (
     <div className="space-y-4">
 
-      {/* ── Top stat cards ── */}
+      {/* ── Top stats ── */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-pink-50 text-center">
           <p className="text-3xl font-bold text-pink-600 tabular-nums">{totalRemaining}</p>
@@ -136,10 +137,23 @@ function StockSummary({ stock }: { stock: StockItem[] }) {
         </div>
       </div>
 
-      {/* ── Per-date totals ── */}
+      {/* ── Per-date sold totals ── */}
       <div className="grid grid-cols-5 gap-2">
         {STOCK_DATES.map((d) => {
           const t = stock.reduce((s, i) => s + (i.dateQty?.[d] ?? 0), 0);
+          if (d === "12") {
+            return (
+              <div key={d} className={`rounded-xl p-2.5 text-center border ${
+                t > 0 ? "bg-white border-emerald-100 shadow-sm" : "bg-white/60 border-pink-50"
+              }`}>
+                <p className="text-[10px] text-gray-400 mb-0.5">วันที่ 12</p>
+                <p className="text-[10px] text-gray-400">คงเหลือ</p>
+                <p className={`text-sm font-bold tabular-nums ${t > 0 ? "text-emerald-600" : "text-gray-200"}`}>
+                  {t > 0 ? t : "—"}
+                </p>
+              </div>
+            );
+          }
           return (
             <div key={d} className={`rounded-xl p-2.5 text-center border ${
               t > 0 ? "bg-white border-violet-100 shadow-sm" : "bg-white/60 border-pink-50"
@@ -153,49 +167,40 @@ function StockSummary({ stock }: { stock: StockItem[] }) {
         })}
       </div>
 
-      {/* ── Per-item cards ── */}
-      <div className="space-y-2">
-        {stock.filter((item) => getRemaining(item) > 0).map((item) => {
-          const initial    = getInitial(item);
-          const remaining  = getRemaining(item);
-          const pct        = initial > 0 ? (remaining / initial) * 100 : 0;
-          const activeDays = STOCK_DATES.filter((d) => (item.dateQty?.[d] ?? 0) > 0);
+      {/* ── Item list ── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-pink-50 overflow-hidden">
+        <div className="flex items-center px-4 py-2.5 border-b border-pink-50 bg-pink-50/40">
+          <span className="flex-1 text-xs font-bold text-gray-400">สินค้า</span>
+          <span className="text-xs font-bold text-pink-500">คงเหลือ</span>
+        </div>
+        {stock.map((item, i) => {
+          const remaining = getRemaining(item);
+          const initial   = getInitial(item);
+          const pct       = initial > 0 ? (remaining / initial) * 100 : 0;
+          const soldOut   = remaining === 0;
 
           return (
-            <div key={item.id} className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-pink-50">
-              <div className="flex items-center justify-between mb-2">
+            <div key={item.id}
+              className={`px-4 py-3 ${i < stock.length - 1 ? "border-b border-pink-50" : ""} ${soldOut ? "opacity-40" : ""}`}>
+              <div className="flex items-center justify-between mb-1.5">
                 <span className="text-sm font-semibold text-gray-700">{item.name}</span>
-                <span className="text-xl font-bold text-pink-600 tabular-nums">{remaining}</span>
+                <span className={`text-lg font-bold tabular-nums ${soldOut ? "text-gray-400" : "text-pink-600"}`}>
+                  {soldOut ? "หมด" : remaining}
+                </span>
               </div>
-
-              <div className="h-1.5 bg-pink-50 rounded-full overflow-hidden mb-2">
+              <div className="h-1 bg-pink-50 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
                     width: `${pct}%`,
                     background: pct > 50
-                      ? "linear-gradient(to right, #a78bfa, #f472b6)"
+                      ? "linear-gradient(to right,#a78bfa,#f472b6)"
                       : pct > 20
-                        ? "linear-gradient(to right, #fb923c, #f472b6)"
-                        : "linear-gradient(to right, #f87171, #fb923c)",
+                        ? "linear-gradient(to right,#fb923c,#f472b6)"
+                        : "linear-gradient(to right,#f87171,#fb923c)",
                   }}
                 />
               </div>
-
-              {activeDays.length > 0 ? (
-                <div className="flex gap-3 flex-wrap">
-                  {activeDays.map((d) => (
-                    <span key={d} className="text-xs text-gray-400">
-                      {d === "12" ? "เหลือ" : "ขาย"}วัน{d}{" "}
-                      <span className={`font-semibold ${d === "12" ? "text-emerald-500" : "text-violet-500"}`}>
-                        {item.dateQty![d]}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-200">ยังไม่มีข้อมูล</p>
-              )}
             </div>
           );
         })}
@@ -502,7 +507,9 @@ export default function TasksPage() {
                       {/* Day total card */}
                       <div className="bg-white rounded-2xl p-4 shadow-sm border border-violet-50 text-center mb-4">
                         <p className="text-3xl font-bold text-violet-600">{totalSoldToday}</p>
-                        <p className="text-xs text-gray-400 mt-1">ชิ้น ขายวันที่ {selectedDate}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {selectedDate === "12" ? `วันที่12 คงเหลือ` : `ชิ้น ขายวันที่ ${selectedDate}`}
+                        </p>
                       </div>
 
                       {/* Item list */}
