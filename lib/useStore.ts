@@ -52,7 +52,12 @@ export function useEvents() {
     await deleteDoc(doc(db, "users", uid, "events", id));
   };
 
-  return { events, addEvent, removeEvent };
+  const updateEvent = async (id: string, data: Omit<import("./store").EventItem, "id">) => {
+    if (!uid) return;
+    await updateDoc(doc(db, "users", uid, "events", id), data as Record<string, unknown>);
+  };
+
+  return { events, addEvent, removeEvent, updateEvent };
 }
 
 export function useTasks() {
