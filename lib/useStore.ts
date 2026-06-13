@@ -185,5 +185,12 @@ export function useStock() {
     await updateDoc(doc(db, "users", uid, "stock", id), { quantity: Math.max(0, qty) });
   };
 
-  return { stock, updateQty, updateDateQty, setDateQty, setInitialQty, addStock, removeStock, renameStock };
+  const setDateRemaining = async (id: string, date: string, qty: number) => {
+    if (!uid) return;
+    await updateDoc(doc(db, "users", uid, "stock", id), {
+      [`dateRemaining.${date}`]: Math.max(0, qty),
+    });
+  };
+
+  return { stock, updateQty, updateDateQty, setDateQty, setInitialQty, addStock, removeStock, renameStock, setDateRemaining };
 }

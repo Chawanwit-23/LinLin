@@ -21,7 +21,7 @@ const TABS = [
   { key: "stock" as const, label: "สต็อค", Icon: Package,       grad: "from-violet-400 to-pink-400",  iconGrad: "from-violet-300 to-pink-300" },
 ];
 
-const STOCK_DATES = ["12", "13", "14", "19", "20"];
+const STOCK_DATES = ["12", "13", "14", "19", "20", "21"];
 
 /* ─── Helpers ─── */
 function getInitial(item: StockItem): number {
@@ -211,57 +211,98 @@ function StockSummary({ stock }: { stock: StockItem[] }) {
 }
 
 /* ─── Stock sale row (date tabs) ─── */
-function StockSaleRow({ item, date, isLast, onSet }: {
+function StockSaleRow({ item, date, isLast, onSet, onSetRemaining }: {
   item: StockItem;
   date: string;
   isLast: boolean;
   onSet: (id: string, date: string, qty: number) => void;
+  onSetRemaining: (id: string, date: string, qty: number) => void;
 }) {
-  const current = item.dateQty?.[date] ?? 0;
   const isDay12 = date === "12";
-  const [val, setVal] = useState(String(current));
+  const sold      = item.dateQty?.[date] ?? 0;
+  const remaining = item.dateRemaining?.[date] ?? 0;
 
-  useEffect(() => { setVal(String(current)); }, [current]);
+  const [soldVal, setSoldVal]           = useState(String(sold));
+  const [remainingVal, setRemainingVal] = useState(String(remaining));
 
-  const commit = (raw: string) => {
+  useEffect(() => { setSoldVal(String(sold)); }, [sold]);
+  useEffect(() => { setRemainingVal(String(remaining)); }, [remaining]);
+
+  const commitSold = (raw: string) => {
     const n = parseInt(raw);
     if (!isNaN(n) && n >= 0) onSet(item.id, date, n);
-    else setVal(String(current));
+    else setSoldVal(String(sold));
   };
 
+  const commitRemaining = (raw: string) => {
+    const n = parseInt(raw);
+    if (!isNaN(n) && n >= 0) onSetRemaining(item.id, date, n);
+    else setRemainingVal(String(remaining));
+  };
+
+  /* วันที่ 12 — input เดียว */
+  if (isDay12) {
+    return (
+      <div className={`flex items-center gap-2.5 px-4 py-3 ${!isLast ? "border-b border-pink-50" : ""}`}>
+        <span className="flex-1 text-sm font-semibold text-gray-700 truncate">{item.name}</span>
+        <input
+          type="number" min="0"
+          value={soldVal}
+          onChange={(e) => setSoldVal(e.target.value)}
+          onBlur={(e) => commitSold(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && commitSold(soldVal)}
+          className="w-16 text-center border border-emerald-200 rounded-xl px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-200 tabular-nums shrink-0 text-emerald-600 bg-emerald-50/60"
+        />
+      </div>
+    );
+  }
+
+  /* วันที่ 13–21 — ขายไป + คงเหลือ */
   return (
-    <div className={`flex items-center gap-2.5 px-4 py-3 ${!isLast ? "border-b border-pink-50" : ""}`}>
-      <span className="flex-1 text-sm font-semibold text-gray-700 truncate">{item.name}</span>
+    <div className={`flex items-center gap-2 px-4 py-3 ${!isLast ? "border-b border-pink-50" : ""}`}>
+      <span className="flex-1 text-sm font-semibold text-gray-700 truncate min-w-0">{item.name}</span>
 
-      {!isDay12 && (
-        <button
-          disabled={current === 0}
-          onClick={() => onSet(item.id, date, Math.max(0, current - 1))}
-          className="w-9 h-9 rounded-xl bg-pink-50 hover:bg-pink-100 disabled:opacity-25 flex items-center justify-center text-pink-400 active:scale-90 transition-all shrink-0">
-          <Minus size={14} />
-        </button>
-      )}
-
+      {/* ขายไป */}
+      <button
+        disabled={sold === 0}
+        onClick={() => onSet(item.id, date, Math.max(0, sold - 1))}
+        className="w-9 h-9 rounded-xl bg-pink-50 hover:bg-pink-100 disabled:opacity-25 flex items-center justify-center text-pink-400 active:scale-90 transition-all shrink-0">
+        <Minus size={14} />
+      </button>
       <input
         type="number" min="0"
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={(e) => commit(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && commit(val)}
-        className={`w-16 text-center border rounded-xl px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 tabular-nums shrink-0 ${
-          isDay12
-            ? "border-emerald-200 text-emerald-600 bg-emerald-50/60 focus:ring-emerald-200"
-            : "border-violet-100 text-violet-600 bg-violet-50/50 focus:ring-violet-200"
-        }`}
+        value={soldVal}
+        onChange={(e) => setSoldVal(e.target.value)}
+        onBlur={(e) => commitSold(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && commitSold(soldVal)}
+        className="w-14 text-center border border-violet-100 rounded-xl px-1 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-violet-200 tabular-nums shrink-0 text-violet-600 bg-violet-50/50"
       />
+      <button
+        onClick={() => onSet(item.id, date, sold + 1)}
+        className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-pink-400 text-white hover:opacity-90 flex items-center justify-center active:scale-90 transition-all shadow-sm shrink-0">
+        <Plus size={14} />
+      </button>
 
-      {!isDay12 && (
-        <button
-          onClick={() => onSet(item.id, date, current + 1)}
-          className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-pink-400 text-white hover:opacity-90 flex items-center justify-center active:scale-90 transition-all shadow-sm shrink-0">
-          <Plus size={14} />
-        </button>
-      )}
+      {/* คงเหลือ */}
+      <button
+        disabled={remaining === 0}
+        onClick={() => onSetRemaining(item.id, date, Math.max(0, remaining - 1))}
+        className="w-9 h-9 rounded-xl bg-emerald-50 hover:bg-emerald-100 disabled:opacity-25 flex items-center justify-center text-emerald-500 active:scale-90 transition-all shrink-0">
+        <Minus size={14} />
+      </button>
+      <input
+        type="number" min="0"
+        value={remainingVal}
+        onChange={(e) => setRemainingVal(e.target.value)}
+        onBlur={(e) => commitRemaining(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && commitRemaining(remainingVal)}
+        className="w-14 text-center border border-emerald-200 rounded-xl px-1 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-200 tabular-nums shrink-0 text-emerald-600 bg-emerald-50/60"
+      />
+      <button
+        onClick={() => onSetRemaining(item.id, date, remaining + 1)}
+        className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-400 text-white hover:opacity-90 flex items-center justify-center active:scale-90 transition-all shadow-sm shrink-0">
+        <Plus size={14} />
+      </button>
     </div>
   );
 }
@@ -269,7 +310,7 @@ function StockSaleRow({ item, date, isLast, onSet }: {
 /* ─── Page ─── */
 export default function TasksPage() {
   const { tasks, addTask, toggleTask, removeTask } = useTasks();
-  const { stock, setDateQty } = useStock();
+  const { stock, setDateQty, setDateRemaining } = useStock();
 
   const [view, setView]           = useState<"tasks" | "stock">("tasks");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -514,18 +555,19 @@ export default function TasksPage() {
 
                       {/* Item list */}
                       <div className="bg-white rounded-3xl shadow-sm border border-pink-50 overflow-hidden">
-                        <div className="flex items-center gap-2.5 px-4 py-2 border-b border-pink-50">
+                        <div className="flex items-center gap-2 px-4 py-2 border-b border-pink-50">
                           <span className="flex-1 text-xs font-bold text-gray-400 uppercase tracking-wide">สินค้า</span>
-                          {selectedDate !== "12" && (
-                            <span className="w-9 text-center text-xs font-bold text-gray-300">ลด</span>
-                          )}
-                          <span className={`w-16 text-center text-xs font-bold ${
-                            selectedDate === "12" ? "text-emerald-500" : "text-gray-400"
-                          }`}>
-                            {selectedDate === "12" ? "คงเหลือ" : "ขายไป"}
-                          </span>
-                          {selectedDate !== "12" && (
-                            <span className="w-9 text-center text-xs font-bold text-gray-300">เพิ่ม</span>
+                          {selectedDate === "12" ? (
+                            <span className="w-16 text-center text-xs font-bold text-emerald-500">คงเหลือ</span>
+                          ) : (
+                            <>
+                              <span className="w-9 text-center text-xs font-bold text-gray-300">-</span>
+                              <span className="w-14 text-center text-xs font-bold text-violet-400">ขายไป</span>
+                              <span className="w-9 text-center text-xs font-bold text-gray-300">+</span>
+                              <span className="w-9 text-center text-xs font-bold text-gray-300">-</span>
+                              <span className="w-14 text-center text-xs font-bold text-emerald-500">คงเหลือ</span>
+                              <span className="w-9 text-center text-xs font-bold text-gray-300">+</span>
+                            </>
                           )}
                         </div>
                         {stock.map((item, i) => (
@@ -535,6 +577,7 @@ export default function TasksPage() {
                             date={selectedDate}
                             isLast={i === stock.length - 1}
                             onSet={setDateQty}
+                            onSetRemaining={setDateRemaining}
                           />
                         ))}
                       </div>

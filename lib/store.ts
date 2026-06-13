@@ -32,6 +32,7 @@ export interface StockItem {
   name: string;
   quantity: number;
   dateQty?: Record<string, number>;
+  dateRemaining?: Record<string, number>;
 }
 
 function load<T>(key: string, fallback: T): T {
